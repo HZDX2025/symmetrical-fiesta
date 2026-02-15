@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>汉责祈年殿 - 马年灵签</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Serif SC', serif;
+            margin: 0;
+            padding: 0;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            background-color: #450a0a;
+            overflow: hidden;
+        }
+
+        .writing-mode-vertical {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            20% { transform: rotate(-12deg) translate(-4px, 0) scale(1.05); }
+            40% { transform: rotate(12deg) translate(4px, 0) scale(1.05); }
+            60% { transform: rotate(-12deg) translate(-2px, 0); }
+            80% { transform: rotate(12deg) translate(2px, 0); }
+        }
+
+        .animate-shake {
+            animation: shake 0.1s infinite ease-in-out;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Fortunes Data
+        const FORTUNES = [
+            { id: 1, title: '免罚卡', type: '特权签', detail: '恭喜获得免罚机会一次,马年也要顺顺利利。', probability: null },
+            { id: 2, title: 'boss 监督一天', type: '磨炼签', detail: '今日有贵人相助(物理),工作效率瞬间拉满!', probability: null },
+            { id: 3, title: '严厉监督一天', type: '修行签', detail: '严师出高徒,今日是属于你的进阶时刻。', probability: null },
+            { id: 4, title: '天天好运', type: '福气签', detail: '福星高照,今日无论做什么都会有意外惊喜。', probability: null },
+            { id: 5, title: '代金卷 10 元', type: '实惠签', detail: '马年发发发,奉上小小心意,祝你财源广进。', probability: null },
+            { id: 9, title: '一对一自习室 2h', type: '学习签', detail: '闹中取静,专属空间,开启两小时的高效进阶之旅。', probability: null },
+            { id: 6, title: 'boss 监督一周', type: '终极挑战', detail: '地狱级难度的关爱,这周你将成为办公室最亮的仔!', probability: 0.0005 },
+            { id: 7, title: '严厉监督一周', type: '脱胎换骨', detail: '这一周的历练,必将成就一个全新的、更强大的你。', probability: 0.0005 },
+            { id: 8, title: '小圈工具一个', type: '神秘奖', detail: '获得神秘生产力工具一个,工欲善其事,必先利其器。', probability: 0.0005 },
+            { id: 10, title: '神秘礼物', type: '极致大奖', detail: '这是马年最神秘的馈赠,唯有万中无一的锦鲤方能开启。请联系管理领取。', probability: 0.0001, isUltimate: true }
+        ];
+
+        // Simple Icon Component
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const paths = {
+                user: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+                sparkles: "M12 3v3m0 12v3m9-9h-3M6 12H3m15.9-5.9l-2.1 2.1M7.1 16.9l-2.1 2.1M16.9 16.9l2.1 2.1M7.1 7.1l2.1-2.1",
+                shieldCheck: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4"
+            };
+
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <path d={paths[name] || ""} />
+                </svg>
+            );
+        };
+
+        const getWeightedFortune = () => {
+            const fixedProbItems = FORTUNES.filter(f => f.probability !== null);
+            const commonItems = FORTUNES.filter(f => f.probability === null);
+            
+            const fixedTotalProb = fixedProbItems.reduce((sum, f) => sum + f.probability, 0);
+            const remainingProb = 1 - fixedTotalProb;
+            const uniformProb = remainingProb / commonItems.length;
+            
+            const allItems = [
+                ...fixedProbItems,
+                ...commonItems.map(item => ({ ...item, probability: uniformProb }))
+            ];
+            
+            const rand = Math.random();
+            let cumulative = 0;
+            
+            for (const item of allItems) {
+                cumulative += item.probability;
+                if (rand <= cumulative) return item;
+            }
+            
+            return allItems[allItems.length - 1];
+        };
+
+        const getTodayStr = () => {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}.${m}.${d}`;
+        };
+
+        // LocalStorage helper functions
+        const getUserData = (nickname) => {
+            const key = `horse_fortune_${nickname}_${getTodayStr()}`;
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        };
+
+        const saveUserData = (nickname, fortuneId) => {
+            const key = `horse_fortune_${nickname}_${getTodayStr()}`;
+            const data = {
+                nickname,
+                fortuneId,
+                date: getTodayStr(),
+                timestamp: Date.now()
+            };
+            localStorage.setItem(key, JSON.stringify(data));
+        };
+
+        function App() {
+            const [isLogged, setIsLogged] = useState(false);
+            const [nickname, setNickname] = useState('');
+            const [hasPlayedToday, setHasPlayedToday] = useState(false);
+            const [result, setResult] = useState(null);
+            const [isShaking, setIsShaking] = useState(false);
+            const [errorMessage, setErrorMessage] = useState('');
+
+            useEffect(() => {
+                // Check if user already logged in today (using sessionStorage)
+                const savedNickname = sessionStorage.getItem('current_user');
+                if (savedNickname) {
+                    setNickname(savedNickname);
+                    setIsLogged(true);
+                    checkTodayPlay(savedNickname);
+                }
+            }, []);
+
+            const checkTodayPlay = (name) => {
+                const userData = getUserData(name);
+                if (userData && userData.fortuneId) {
+                    setHasPlayedToday(true);
+                    const fortune = FORTUNES.find(f => f.id === userData.fortuneId);
+                    if (fortune) {
+                        setResult(fortune);
+                    }
+                } else {
+                    setHasPlayedToday(false);
+                    setResult(null);
+                }
+            };
+
+            const handleEnterTemple = () => {
+                if (!nickname.trim()) {
+                    setErrorMessage('请输入您的微信名');
+                    return;
+                }
+                
+                sessionStorage.setItem('current_user', nickname);
+                setIsLogged(true);
+                setErrorMessage('');
+                checkTodayPlay(nickname);
+            };
+
+            const handleDraw = () => {
+                if (hasPlayedToday) return;
+                
+                setIsShaking(true);
+                
+                setTimeout(() => {
+                    const fortune = getWeightedFortune();
+                    setIsShaking(false);
+                    setResult(fortune);
+                    setHasPlayedToday(true);
+                    
+                    // Save to localStorage
+                    saveUserData(nickname, fortune.id);
+                }, 2000);
+            };
+
+            if (!isLogged) {
+                return (
+                    <div className="min-h-[100dvh] bg-gradient-to-b from-red-950 via-red-900 to-red-950 flex items-center justify-center p-4 relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-5 pointer-events-none">
+                            <svg width="100%" height="100%">
+                                <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                                    <path d="M 30 0 L 0 0 0 30" fill="none" stroke="currentColor" strokeWidth="0.5"/>
+                                </pattern>
+                                <rect width="100%" height="100%" fill="url(#grid)" />
+                            </svg>
+                        </div>
+                        
+                        <div className="z-10 w-full max-w-sm flex flex-col items-center">
+                            <div className="mb-10 text-center">
+                                <div className="inline-block border-4 border-amber-500 p-1 mb-4 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                                    <div className="border border-amber-500 bg-red-950/60 px-8 py-5">
+                                        <h1 className="text-4xl font-black tracking-[0.4em] text-amber-400">汉责祈年</h1>
+                                    </div>
+                                </div>
+                                <p className="text-amber-200/60 text-xs tracking-[0.3em] font-light uppercase">EST. 2026 Fortune Hall</p>
+                            </div>
+                            <div className="w-full bg-red-800/90 backdrop-blur-xl border border-amber-600/30 p-8 rounded-[2rem] shadow-2xl">
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-amber-400 text-xs font-bold mb-3 tracking-widest text-center uppercase">录入善信名号</label>
+                                        <div className="relative">
+                                            <Icon name="user" size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-600/50" />
+                                            <input 
+                                                type="text"
+                                                value={nickname}
+                                                onChange={(e) => setNickname(e.target.value)}
+                                                placeholder="输入微信名"
+                                                className="w-full bg-red-950/50 border-2 border-amber-600/20 rounded-2xl py-4 pl-12 pr-4 text-amber-100 placeholder:text-amber-100/20 focus:outline-none focus:border-amber-400 transition-all text-center text-base"
+                                                style={{ fontSize: '16px' }}
+                                                onKeyPress={(e) => e.key === 'Enter' && handleEnterTemple()}
+                                            />
+                                        </div>
+                                    </div>
+                                    <button onClick={handleEnterTemple} className="w-full bg-amber-500 text-red-950 font-black py-4 rounded-2xl active:scale-95 transition-all shadow-[0_8px_0_rgb(180,120,0)] active:translate-y-1 active:shadow-none">
+                                        进入祈年殿
+                                    </button>
+                                </div>
+                                {errorMessage && <div className="mt-4 text-amber-300 text-xs text-center animate-pulse">{errorMessage}</div>}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-[100dvh] bg-red-900 text-amber-100 flex flex-col items-center p-4 relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-5 pointer-events-none">
+                        <svg width="100%" height="100%">
+                            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                                <path d="M 30 0 L 0 0 0 30" fill="none" stroke="currentColor" strokeWidth="0.5"/>
+                            </pattern>
+                            <rect width="100%" height="100%" fill="url(#grid)" />
+                        </svg>
+                    </div>
+
+                    <header className="z-10 w-full max-w-sm flex items-center justify-between mt-2 mb-8">
+                        <div className="flex flex-col">
+                            <span className="text-amber-400 text-lg tracking-widest font-bold">善信:{nickname}</span>
+                            <span className="text-amber-200/40 text-[10px] font-mono">{getTodayStr()}</span>
+                        </div>
+                        <button 
+                            onClick={() => { 
+                                setIsLogged(false); 
+                                setNickname(''); 
+                                sessionStorage.removeItem('current_user');
+                            }} 
+                            className="text-[10px] bg-red-950/60 border border-amber-600/30 px-4 py-2 rounded-full active:bg-amber-600 active:text-red-950 transition-colors"
+                        >
+                            切换
+                        </button>
+                    </header>
+
+                    <main className="z-10 flex-1 flex flex-col items-center justify-center w-full max-w-sm">
+                        <div className={`relative transition-transform duration-300 ${isShaking ? 'animate-shake' : ''}`}>
+                            <div className="w-40 h-60 bg-gradient-to-b from-red-800 to-red-950 border-x-4 border-b-8 border-amber-600 rounded-b-[2.5rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] relative z-20">
+                                <div className="absolute top-0 left-0 w-full h-8 bg-amber-600 flex items-center justify-center border-b border-red-900/10">
+                                    <span className="text-[10px] text-red-900 font-black tracking-widest uppercase">汉责祈年 · 御守</span>
+                                </div>
+                                <div className="pt-12 px-8 flex justify-between h-full opacity-60">
+                                    {[...Array(8)].map((_, i) => (
+                                        <div key={i} className="w-1.5 h-36 bg-amber-500/80 rounded-full transform" style={{ transform: `rotate(${(i - 3.5) * 6}deg)` }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                            {isShaking && <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-3 h-28 bg-amber-400 rounded-full shadow-2xl animate-bounce border-b-8 border-red-700 z-10"></div>}
+                        </div>
+
+                        <div className="mt-16 w-full px-4 text-center z-10">
+                            {!hasPlayedToday ? (
+                                <div className="space-y-4">
+                                    <button onClick={handleDraw} disabled={isShaking} className="w-full py-5 bg-amber-500 text-red-950 font-black text-xl rounded-[1.5rem] shadow-[0_10px_0_rgb(180,120,0)] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                        <Icon name="sparkles" className={isShaking ? "animate-spin" : ""} />
+                                        {isShaking ? '正在摇取灵签...' : '揭晓今日运势'}
+                                    </button>
+                                    <p className="text-amber-200/30 text-[10px] animate-pulse uppercase tracking-[0.2em]">心诚则灵 · 马到成功</p>
+                                </div>
+                            ) : (
+                                <div className="bg-red-950/40 border border-amber-600/20 p-8 rounded-[2rem] backdrop-blur-xl shadow-inner">
+                                    <p className="text-amber-400 text-lg mb-6 italic tracking-widest">今日灵签已定</p>
+                                    <button onClick={() => setResult(result)} className="w-full bg-amber-600/20 text-amber-400 border border-amber-500 py-4 rounded-xl font-black active:bg-amber-600 active:text-red-950 transition-all shadow-lg">查看专属签文</button>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+
+                    {result && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-5 bg-red-950/95 backdrop-blur-2xl">
+                            <div className="w-full max-w-xs bg-amber-50 rounded-xl border-[10px] border-red-800 shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
+                                <div className="absolute top-2 right-2 z-10">
+                                    <button onClick={() => setResult(null)} className="p-2 text-red-900/30 font-bold text-2xl">✕</button>
+                                </div>
+                                <div className="p-8 flex flex-col items-center overflow-y-auto no-scrollbar">
+                                    <div className={`writing-mode-vertical text-4xl font-black tracking-[0.2em] border-4 p-4 mb-6 ${result.isUltimate ? 'text-amber-600 border-amber-600' : 'text-red-800 border-red-800'}`}>
+                                        {result.title}
+                                    </div>
+                                    <div className="w-16 h-0.5 bg-red-200 mb-6"></div>
+                                    <div className={`text-xs font-bold px-6 py-2 rounded-full mb-6 tracking-widest ${result.isUltimate ? 'bg-amber-600 text-white' : 'bg-red-700 text-white'}`}>
+                                        {result.type}
+                                    </div>
+                                    <p className="leading-relaxed text-center px-2 font-bold mb-8 text-lg text-red-900 italic tracking-tight">"{result.detail}"</p>
+                                    <div className="mt-auto flex flex-col items-center gap-1.5 text-[10px] text-red-900/50 font-mono tracking-tighter text-center pt-4 border-t border-red-100 w-full uppercase">
+                                        <div className="flex items-center gap-1">
+                                            <Icon name="shieldCheck" size={12} />
+                                            <span>善信 {nickname} · 汉责祈年殿已载</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {result.probability !== null && (
+                                    <div className="absolute bottom-4 right-4 -rotate-12 opacity-20 pointer-events-none">
+                                        <div className="border-4 border-red-600 rounded-full w-20 h-20 flex items-center justify-center text-[10px] font-black text-center text-red-600" style={{ whiteSpace: 'pre-line' }}>
+                                            {result.isUltimate ? '万中\n无一' : '稀世\n灵签'}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
